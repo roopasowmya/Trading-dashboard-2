@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Trading Command Center</title>
+<style>
+  :root{
+    --bg: #0b0f19;
+    --card: #1a2236;
+    --card-border: #2a3452;
+    --teal: #5eead4;
+    --green: #34d399;
+    --red: #f87171;
+    --text: #e5e9f0;
+    --muted: #8b93a7;
+  }
+  *{ box-sizing: border-box; }
+  body{
+    margin:0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    padding: 24px 16px 60px;
+  }
+  .wrap{ max-width: 1100px; margin: 0 auto; }
+  header{ text-align:center; margin-bottom: 32px; }
+  h1{
+    font-size: clamp(28px, 6vw, 44px);
+    margin: 0 0 8px;
+    background: linear-gradient(90deg, #5eead4, #60a5fa);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    font-weight: 800;
+  }
+  header p{ color: var(--muted); margin:0; font-size: 15px; }
+
+  .clocks{
+    display:grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+  @media (max-width: 700px){
+    .clocks{ grid-template-columns: 1fr; }
+  }
+  .clock-card{
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    border-radius: 14px;
+    padding: 22px 16px;
+    text-align:center;
+  }
+  .clock-card .code{ font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+  .clock-card .zone{ color: var(--muted); font-size: 12px; letter-spacing: 1px; margin: 4px 0 14px; text-transform: uppercase; }
+  .clock-card .time{
+    font-size: clamp(28px, 5vw, 38px);
+    font-weight: 700;
+    color: var(--green);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 1px;
+  }
+  .clock-card .date{ color: var(--muted); font-size: 13px; margin-top: 10px; }
+
+  section.panel{
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    border-radius: 14px;
+    padding: 20px 18px;
+    margin-bottom: 20px;
+  }
+  section.panel h2{
+    font-size: 15px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    margin: 0 0 16px;
+    color: #cbd5e1;
+  }
+
+  .sessions{
+    display:grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+  }
+  @media (max-width: 800px){
+    .sessions{ grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (max-width: 480px){
+    .sessions{ grid-template-columns: 1fr; }
+  }
+  .session-card{
+    background: #131a2c;
+    border: 1px solid var(--card-border);
+    border-radius: 10px;
+    padding: 14px;
+    display:flex;
+    align-items:center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  .session-left{ display:flex; align-items:flex-start; gap: 8px; }
+  .dot{ width:9px; height:9px; border-radius:50%; margin-top:6px; flex-shrink:0; }
+  .dot.open{ background: var(--green); box-shadow: 0 0 8px var(--green); }
+  .dot.closed{ background: var(--red); }
+  .session-name{ font-weight: 700; font-size: 15px; }
+  .session-time{ color: var(--muted); font-size: 12px; margin-top: 2px; }
+  .badge{
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    padding: 4px 10px;
+    border-radius: 6px;
+    white-space: nowrap;
+  }
+  .badge.open{ background: rgba(52,211,153,0.15); color: var(--green); }
+  .badge.closed{ background: rgba(148,163,184,0.12); color: var(--muted); }
+
+  .presets{ display:flex; flex-wrap: wrap; gap: 10px; margin-bottom: 18px; }
+  .preset-btn{
+    background: #131a2c;
+    border: 1px solid var(--card-border);
+    color: var(--text);
+    padding: 10px 18px;
+    border-radius: 8px;
+    font-weight: 700;
+    font-size: 14px;
+    cursor: pointer;
+    transition: 0.15s;
+  }
+  .preset-btn:hover{ border-color: var(--teal); color: var(--teal); }
+  .preset-btn:focus-visible, .add-btn:focus-visible, input:focus-visible{
+    outline: 2px solid var(--teal); outline-offset: 2px;
+  }
+
+  .add-row{
+    display:flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .add-row input{
+    background: #131a2c;
+    border: 1px solid var(--card-border);
+    color: var(--text);
+    padding: 12px 14px;
+    border-radius: 8px;
+    font-size: 14px;
+  }
+  .add-row input[name="tname"]{ flex: 2; min-width: 140px; }
+  .add-row input[name="tmin"]{ flex: 1; min-width: 90px; }
+  .add-btn{
+    background: var(--green);
+    color: #0b0f19;
+    border: none;
+    padding: 12px 20px;
+    border-radius: 8px;
+    font-weight: 800;
+    font-size: 14px;
+    cursor: pointer;
+  }
+  .add-btn:hover{ filter: brightness(1.08); }
+
+  .timers-list{ margin-top: 18px; display:flex; flex-direction:column; gap: 10px; }
+  .timer-item{
+    background: #131a2c;
+    border: 1px solid var(--card-border);
+    border-radius: 10px;
+    padding: 12px 16px;
+    display:flex;
+    align-items:center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  .timer-name{ font-weight: 700; font-size: 14px; }
+  .timer-remain{
+    font-variant-numeric: tabular-nums;
+    font-weight: 700;
+    color: var(--teal);
+    font-size: 16px;
+  }
+  .timer-item.done .timer-remain{ color: var(--red); }
+  .timer-actions{ display:flex; gap: 8px; align-items:center; }
+  .icon-btn{
+    background: transparent;
+    border: 1px solid var(--card-border);
+    color: var(--muted);
+    border-radius: 6px;
+    padding: 6px 10px;
+    cursor: pointer;
+    font-size: 13px;
+  }
+  .icon-btn:hover{ color: var(--red); border-color: var(--red); }
+  .empty-state{ color: var(--muted); font-size: 13px; text-align:center; padding: 10px 0; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Trading Command Center</h1>
+    <p>Your trading journey, all in one place</p>
+  </header>
+
+  <div class="clocks" id="clocks"></div>
+
+  <section class="panel">
+    <h2>Forex Sessions</h2>
+    <div class="sessions" id="sessions"></div>
+  </section>
+
+  <section class="panel">
+    <h2>Custom Timers</h2>
+    <div class="presets" id="presets"></div>
+    <div class="add-row">
+      <input type="text" name="tname" id="tname" placeholder="Timer name...">
+      <input type="number" name="tmin" id="tmin" placeholder="Minutes" min="1">
+      <button class="add-btn" id="addBtn">+ Add</button>
+    </div>
+    <div class="timers-list" id="timersList"></div>
+  </section>
+</div>
+
+<script>
+  // ---------- World Clocks ----------
+  const zones = [
+    { code:"IN", label:"IST (India)", tz:"Asia/Kolkata" },
+    { code:"GB", label:"London (GMT/BST)", tz:"Europe/London" },
+    { code:"US", label:"New York (ET)", tz:"America/New_York" }
+  ];
+
+  const clocksEl = document.getElementById('clocks');
+  clocksEl.innerHTML = zones.map((z,i) => `
+    <div class="clock-card">
+      <div class="code">${z.code}</div>
+      <div class="zone">${z.label}</div>
+      <div class="time" id="time-${i}">--:--:--</div>
+      <div class="date" id="date-${i}">--</div>
+    </div>
+  `).join('');
+
+  function updateClocks(){
+    zones.forEach((z,i)=>{
+      const now = new Date();
+      const timeStr = new Intl.DateTimeFormat('en-GB', {
+        timeZone: z.tz, hour:'2-digit', minute:'2-digit', second:'2-digit', hour12:false
+      }).format(now);
+      const dateStr = new Intl.DateTimeFormat('en-GB', {
+        timeZone: z.tz, weekday:'short', day:'2-digit', month:'short', year:'numeric'
+      }).format(now);
+      document.getElementById(`time-${i}`).textContent = timeStr;
+      document.getElementById(`date-${i}`).textContent = dateStr;
+    });
+  }
+
+  // ---------- Forex Sessions ----------
+  // times in GMT/UTC hours
+  const sessions = [
+    { name:"Sydney", open:22, close:7 },
+    { name:"Tokyo", open:0, close:9 },
+    { name:"London", open:8, close:17 },
+    { name:"New York", open:13, close:22 }
+  ];
+
+  const sessionsEl = document.getElementById('sessions');
+  sessionsEl.innerHTML = sessions.map((s,i)=>`
+    <div class="session-card">
+      <div class="session-left">
+        <div class="dot" id="dot-${i}"></div>
+        <div>
+          <div class="session-name">${s.name}</div>
+          <div class="session-time">${pad(s.open)}:00 - ${pad(s.close)}:00 GMT</div>
+        </div>
+      </div>
+      <div class="badge" id="badge-${i}">--</div>
+    </div>
+  `).join('');
+
+  function pad(n){ return n.toString().padStart(2,'0'); }
+
+  function isOpen(open, close, hourUTC){
+    if(open < close){
+      return hourUTC >= open && hourUTC < close;
+    } else {
+      return hourUTC >= open || hourUTC < close;
+    }
+  }
+
+  function updateSessions(){
+    const nowUTC = new Date();
+    const hourUTC = nowUTC.getUTCHours() + nowUTC.getUTCMinutes()/60;
+    sessions.forEach((s,i)=>{
+      const open = isOpen(s.open, s.close, hourUTC);
+      const dot = document.getElementById(`dot-${i}`);
+      const badge = document.getElementById(`badge-${i}`);
+      dot.className = 'dot ' + (open ? 'open' : 'closed');
+      badge.className = 'badge ' + (open ? 'open' : 'closed');
+      badge.textContent = open ? 'OPEN' : 'CLOSED';
+    });
+  }
+
+  // ---------- Custom Timers ----------
+  const presetMinutes = [
+    {label:"1m", min:1}, {label:"5m", min:5}, {label:"15m", min:15},
+    {label:"30m", min:30}, {label:"1h", min:60}, {label:"2h", min:120}, {label:"4h", min:240}
+  ];
+  const presetsEl = document.getElementById('presets');
+  presetsEl.innerHTML = presetMinutes.map(p => `<button class="preset-btn" data-min="${p.min}">${p.label}</button>`).join('');
+
+  let timers = [];
+  let timerId = 0;
+
+  function addTimer(name, minutes){
+    if(!minutes || minutes <= 0) return;
+    timers.push({
+      id: ++timerId,
+      name: name && name.trim() ? name.trim() : `${minutes} min timer`,
+      endsAt: Date.now() + minutes*60*1000
+    });
+    renderTimers();
+  }
+
+  presetsEl.addEventListener('click', (e)=>{
+    const btn = e.target.closest('.preset-btn');
+    if(!btn) return;
+    const min = Number(btn.dataset.min);
+    const nameInput = document.getElementById('tname');
+    addTimer(nameInput.value, min);
+  });
+
+  document.getElementById('addBtn').addEventListener('click', ()=>{
+    const name = document.getElementById('tname').value;
+    const min = Number(document.getElementById('tmin').value);
+    addTimer(name, min);
+    document.getElementById('tname').value = '';
+    document.getElementById('tmin').value = '';
+  });
+
+  function removeTimer(id){
+    timers = timers.filter(t => t.id !== id);
+    renderTimers();
+  }
+
+  function renderTimers(){
+    const list = document.getElementById('timersList');
+    if(timers.length === 0){
+      list.innerHTML = `<div class="empty-state">No active timers. Pick a preset or add a custom one above.</div>`;
+      return;
+    }
+    list.innerHTML = timers.map(t => {
+      const remainMs = t.endsAt - Date.now();
+      const done = remainMs <= 0;
+      const remainStr = done ? "00:00:00" : formatMs(remainMs);
+      return `
+        <div class="timer-item ${done ? 'done' : ''}">
+          <div class="timer-name">${escapeHtml(t.name)}</div>
+          <div class="timer-remain">${done ? "DONE" : remainStr}</div>
+          <div class="timer-actions">
+            <button class="icon-btn" data-remove="${t.id}">Remove</button>
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  document.getElementById('timersList').addEventListener('click', (e)=>{
+    const btn = e.target.closest('[data-remove]');
+    if(!btn) return;
+    removeTimer(Number(btn.dataset.remove));
+  });
+
+  function formatMs(ms){
+    let totalSec = Math.floor(ms/1000);
+    const h = Math.floor(totalSec/3600); totalSec -= h*3600;
+    const m = Math.floor(totalSec/60); totalSec -= m*60;
+    const s = totalSec;
+    return `${pad(h)}:${pad(m)}:${pad(s)}`;
+  }
+
+  function escapeHtml(str){
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+  // ---------- Main loop ----------
+  function tick(){
+    updateClocks();
+    updateSessions();
+    renderTimers();
+  }
+  tick();
+  setInterval(tick, 1000);
+</script>
+</body>
+</html>
