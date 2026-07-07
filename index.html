@@ -78,44 +78,6 @@
     color: #cbd5e1;
   }
 
-  .sessions{
-    display:grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 12px;
-  }
-  @media (max-width: 800px){
-    .sessions{ grid-template-columns: repeat(2, 1fr); }
-  }
-  @media (max-width: 480px){
-    .sessions{ grid-template-columns: 1fr; }
-  }
-  .session-card{
-    background: #131a2c;
-    border: 1px solid var(--card-border);
-    border-radius: 10px;
-    padding: 14px;
-    display:flex;
-    align-items:center;
-    justify-content: space-between;
-    gap: 10px;
-  }
-  .session-left{ display:flex; align-items:flex-start; gap: 8px; }
-  .dot{ width:9px; height:9px; border-radius:50%; margin-top:6px; flex-shrink:0; }
-  .dot.open{ background: var(--green); box-shadow: 0 0 8px var(--green); }
-  .dot.closed{ background: var(--red); }
-  .session-name{ font-weight: 700; font-size: 15px; }
-  .session-time{ color: var(--muted); font-size: 12px; margin-top: 2px; }
-  .badge{
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: 0.5px;
-    padding: 4px 10px;
-    border-radius: 6px;
-    white-space: nowrap;
-  }
-  .badge.open{ background: rgba(52,211,153,0.15); color: var(--green); }
-  .badge.closed{ background: rgba(148,163,184,0.12); color: var(--muted); }
-
   .presets{ display:flex; flex-wrap: wrap; gap: 10px; margin-bottom: 18px; }
   .preset-btn{
     background: #131a2c;
@@ -203,11 +165,6 @@
   <div class="clocks" id="clocks"></div>
 
   <section class="panel">
-    <h2>Forex Sessions</h2>
-    <div class="sessions" id="sessions"></div>
-  </section>
-
-  <section class="panel">
     <h2>Custom Timers</h2>
     <div class="presets" id="presets"></div>
     <div class="add-row">
@@ -251,51 +208,7 @@
     });
   }
 
-  // ---------- Forex Sessions ----------
-  // times in GMT/UTC hours
-  const sessions = [
-    { name:"Sydney", open:22, close:7 },
-    { name:"Tokyo", open:0, close:9 },
-    { name:"London", open:8, close:17 },
-    { name:"New York", open:13, close:22 }
-  ];
-
-  const sessionsEl = document.getElementById('sessions');
-  sessionsEl.innerHTML = sessions.map((s,i)=>`
-    <div class="session-card">
-      <div class="session-left">
-        <div class="dot" id="dot-${i}"></div>
-        <div>
-          <div class="session-name">${s.name}</div>
-          <div class="session-time">${pad(s.open)}:00 - ${pad(s.close)}:00 GMT</div>
-        </div>
-      </div>
-      <div class="badge" id="badge-${i}">--</div>
-    </div>
-  `).join('');
-
   function pad(n){ return n.toString().padStart(2,'0'); }
-
-  function isOpen(open, close, hourUTC){
-    if(open < close){
-      return hourUTC >= open && hourUTC < close;
-    } else {
-      return hourUTC >= open || hourUTC < close;
-    }
-  }
-
-  function updateSessions(){
-    const nowUTC = new Date();
-    const hourUTC = nowUTC.getUTCHours() + nowUTC.getUTCMinutes()/60;
-    sessions.forEach((s,i)=>{
-      const open = isOpen(s.open, s.close, hourUTC);
-      const dot = document.getElementById(`dot-${i}`);
-      const badge = document.getElementById(`badge-${i}`);
-      dot.className = 'dot ' + (open ? 'open' : 'closed');
-      badge.className = 'badge ' + (open ? 'open' : 'closed');
-      badge.textContent = open ? 'OPEN' : 'CLOSED';
-    });
-  }
 
   // ---------- Custom Timers ----------
   const presetMinutes = [
@@ -307,13 +220,44 @@
 
   let timers = [];
   let timerId = 0;
+  let audioCtx = null;
+
+  function playAlarm(){
+    try{
+      if(!audioCtx){
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      if(audioCtx.state === 'suspended') audioCtx.resume();
+      const now = audioCtx.currentTime;
+      // three short beeps
+      [0, 0.35, 0.7].forEach(offset => {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sine';
+        osc.frequency.value = 880;
+        gain.gain.setValueAtTime(0.0001, now + offset);
+        gain.gain.exponentialRampToValueAtTime(0.4, now + offset + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + offset + 0.28);
+        osc.connect(gain).connect(audioCtx.destination);
+        osc.start(now + offset);
+        osc.stop(now + offset + 0.3);
+      });
+    } catch(e){
+      console.error('Alarm sound failed', e);
+    }
+  }
 
   function addTimer(name, minutes){
     if(!minutes || minutes <= 0) return;
+    // unlock/create audio context on user gesture (needed for mobile browsers)
+    if(!audioCtx){
+      try{ audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }catch(e){}
+    }
     timers.push({
       id: ++timerId,
       name: name && name.trim() ? name.trim() : `${minutes} min timer`,
-      endsAt: Date.now() + minutes*60*1000
+      endsAt: Date.now() + minutes*60*1000,
+      alerted: false
     });
     renderTimers();
   }
@@ -348,6 +292,10 @@
     list.innerHTML = timers.map(t => {
       const remainMs = t.endsAt - Date.now();
       const done = remainMs <= 0;
+      if(done && !t.alerted){
+        t.alerted = true;
+        playAlarm();
+      }
       const remainStr = done ? "00:00:00" : formatMs(remainMs);
       return `
         <div class="timer-item ${done ? 'done' : ''}">
@@ -384,7 +332,6 @@
   // ---------- Main loop ----------
   function tick(){
     updateClocks();
-    updateSessions();
     renderTimers();
   }
   tick();
