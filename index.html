@@ -229,19 +229,23 @@
       }
       if(audioCtx.state === 'suspended') audioCtx.resume();
       const now = audioCtx.currentTime;
-      // three short beeps
-      [0, 0.35, 0.7].forEach(offset => {
+      const totalDuration = 10; // seconds
+      const beepLen = 0.35;
+      const gap = 0.25;
+      let offset = 0;
+      while(offset < totalDuration){
         const osc = audioCtx.createOscillator();
         const gain = audioCtx.createGain();
         osc.type = 'sine';
         osc.frequency.value = 880;
         gain.gain.setValueAtTime(0.0001, now + offset);
-        gain.gain.exponentialRampToValueAtTime(0.4, now + offset + 0.02);
-        gain.gain.exponentialRampToValueAtTime(0.0001, now + offset + 0.28);
+        gain.gain.exponentialRampToValueAtTime(0.4, now + offset + 0.03);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + offset + beepLen);
         osc.connect(gain).connect(audioCtx.destination);
         osc.start(now + offset);
-        osc.stop(now + offset + 0.3);
-      });
+        osc.stop(now + offset + beepLen + 0.02);
+        offset += beepLen + gap;
+      }
     } catch(e){
       console.error('Alarm sound failed', e);
     }
